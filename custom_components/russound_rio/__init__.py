@@ -43,6 +43,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: RussoundConfigEntry) -> 
     try:
         await client.connect()
         await client.load_zone_source_metadata()
+
+        _LOGGER.warning("Russound init controllers raw: %r", client.controllers)
+        _LOGGER.warning(
+            "Russound init controller ids: %s",
+            list(client.controllers.keys()) if client.controllers else [],
+        )
+        _LOGGER.warning(
+            "Russound init controller count: %s",
+            len(client.controllers) if client.controllers else 0,
+        )
+
+        for controller_id, controller in client.controllers.items():
+            _LOGGER.warning(
+                "Russound init controller %s object: %r",
+                controller_id,
+                controller,
+            )
+            _LOGGER.warning(
+                "Russound init controller %s zones raw: %r",
+                controller_id,
+                controller.zones,
+            )
+
+            try:
+                zone_keys = (
+                    list(controller.zones.keys())
+                    if controller.zones and hasattr(controller.zones, "keys")
+                    else list(controller.zones)
+                    if controller.zones
+                    else []
+                )
+            except Exception as err:
+                zone_keys = [f"<error reading zones: {err}>"]
+
+            _LOGGER.warning(
+                "Russound init controller %s zones keys: %s",
+                controller_id,
+                zone_keys,
+            )
     except RUSSOUND_RIO_EXCEPTIONS as err:
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
