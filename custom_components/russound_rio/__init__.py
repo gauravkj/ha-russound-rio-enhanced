@@ -2,8 +2,14 @@
 
 import logging
 
+import aiorussound.util as rs_util
 from aiorussound import RussoundClient, RussoundTcpConnectionHandler
 from aiorussound.models import CallbackType
+
+try:
+    import aiorussound.rio as rs_rio
+except ImportError:
+    rs_rio = None
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
@@ -19,6 +25,15 @@ PLATFORMS = [Platform.MEDIA_PLAYER, Platform.NUMBER, Platform.SWITCH]
 _LOGGER = logging.getLogger(__name__)
 
 type RussoundConfigEntry = ConfigEntry[RussoundClient]
+
+_original_get_max_zones = rs_util.get_max_zones
+
+
+def patched_get_max_zones(model: str) -> int:
+    """Patch zone counts for models not yet handled upstream."""
+    if model in ("SMZ16-PRE", "SMZ16"):
+        return 16
+    return _original_get_max_zones(model)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: RussoundConfigEntry) -> bool:
@@ -41,6 +56,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: RussoundConfigEntry) -> 
     await client.register_state_update_callbacks(_connection_update_callback)
 
     try:
+        rs_util.get_max_zones = patched_get_max_zones
+        if rs_rio is not None and hasattr(rs_rio, "get_max_zones"):
+            rs_rio.get_max_zones = patched_get_max_zones
+
+        _LOGGER.warning(
+            "Patch check rs_util.get_max_zones('SMZ16-PRE')=%s",
+            rs_util.get_max_zones("SMZ16-PRE"),
+        )
+        if rs_rio is not None and hasattr(rs_rio, "get_max_zones"):
+            _LOGGER.warning(
+                "Patch check rs_rio.get_max_zones('SMZ16-PRE')=%s",
+                rs_rio.get_max_zones("SMZ16-PRE"),
+            )
+
         await client.connect()
         await client.load_zone_source_metadata()
 
@@ -91,6 +120,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RussoundConfigEntry) -> 
                 "port": port,
             },
         ) from err
+
     entry.runtime_data = client
 
     device_registry = dr.async_get(hass)
