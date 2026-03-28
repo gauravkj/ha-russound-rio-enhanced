@@ -6,7 +6,7 @@ Enhanced Home Assistant integration for Russound RIO systems, built to improve s
 
 This project started from a real world issue where Home Assistant exposed only 1 zone for an SMZ16 PRE even though the controller supports 16 zones.
 
-The root cause was traced to `aiorussound`, where the model was not recognized correctly for max zone discovery. A fix was developed, tested, and proposed upstream.
+The root cause was traced to `aiorussound`, where the model was not recognized correctly for max zone discovery. A fix was developed, tested, and submitted upstream to aiorussound.
 
 This repo provides a working custom integration layer for Russound based Home Assistant setups and a place for further feature enhancements.
 
