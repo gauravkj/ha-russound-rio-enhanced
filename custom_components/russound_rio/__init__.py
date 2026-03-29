@@ -26,7 +26,6 @@ PLATFORMS: list[Platform] = [
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
     Platform.SWITCH,
-    Platform.BUTTON,
 ]
 
 type RussoundConfigEntry = ConfigEntry[RussoundClient]
