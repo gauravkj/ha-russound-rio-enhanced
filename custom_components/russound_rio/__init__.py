@@ -18,15 +18,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.typing import ConfigType
 
-type RussoundConfigEntry = ConfigEntry[RussoundClient]
-
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
     Platform.SWITCH,
+    Platform.BUTTON,
 ]
+
+type RussoundConfigEntry = ConfigEntry[RussoundClient]
 
 
 def _patched_get_max_zones(controller_type: str) -> int:
@@ -95,6 +96,7 @@ async def async_unload_entry(
     client = entry.runtime_data
     if unload_ok and client is not None:
         try:
+            client.clear_state_update_callbacks()
             await client.disconnect()
         except Exception:
             _LOGGER.debug("Error while disconnecting Russound client", exc_info=True)
