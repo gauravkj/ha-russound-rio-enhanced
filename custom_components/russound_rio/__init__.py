@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+type RussoundConfigEntry = ConfigEntry[RussoundClient]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,8 +27,6 @@ PLATFORMS: list[Platform] = [
     Platform.NUMBER,
     Platform.SWITCH,
 ]
-
-type RussoundConfigEntry = ConfigEntry[RussoundClient]
 
 
 def _patched_get_max_zones(controller_type: str) -> int:
