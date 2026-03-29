@@ -19,7 +19,7 @@ PARALLEL_UPDATES = 0
 
 @dataclass(frozen=True, kw_only=True)
 class RussoundZoneSwitchEntityDescription(SwitchEntityDescription):
-    """Describes Russound RIO switch entity description."""
+    """Describes Russound RIO zone switch entity description."""
 
     value_fn: Callable[[ZoneControlSurface], bool]
     set_value_fn: Callable[[ZoneControlSurface, bool], Awaitable[None]]
@@ -28,10 +28,17 @@ class RussoundZoneSwitchEntityDescription(SwitchEntityDescription):
 CONTROL_ENTITIES: tuple[RussoundZoneSwitchEntityDescription, ...] = (
     RussoundZoneSwitchEntityDescription(
         key="loudness",
-        translation_key="loudness",
+        name="Low Volume Boost",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda zone: zone.loudness,
         set_value_fn=lambda zone, value: zone.set_loudness(value),
+    ),
+    RussoundZoneSwitchEntityDescription(
+        key="do_not_disturb",
+        name="Do Not Disturb",
+        entity_category=EntityCategory.CONFIG,
+        value_fn=lambda zone: zone.do_not_disturb,
+        set_value_fn=lambda zone, value: zone.set_do_not_disturb(value),
     ),
 )
 
@@ -43,16 +50,19 @@ async def async_setup_entry(
 ) -> None:
     """Set up Russound RIO switch entities based on a config entry."""
     client = entry.runtime_data
-    async_add_entities(
+
+    entities: list[SwitchEntity] = [
         RussoundSwitchEntity(controller, zone_id, description)
         for controller in client.controllers.values()
         for zone_id in controller.zones
         for description in CONTROL_ENTITIES
-    )
+    ]
+
+    async_add_entities(entities)
 
 
 class RussoundSwitchEntity(RussoundBaseEntity, SwitchEntity):
-    """Defines a Russound RIO switch entity."""
+    """Defines a Russound RIO zone switch entity."""
 
     entity_description: RussoundZoneSwitchEntityDescription
 
@@ -62,7 +72,7 @@ class RussoundSwitchEntity(RussoundBaseEntity, SwitchEntity):
         zone_id: int,
         description: RussoundZoneSwitchEntityDescription,
     ) -> None:
-        """Initialize Russound RIO switch."""
+        """Initialize Russound RIO zone switch."""
         super().__init__(controller, zone_id)
         self.entity_description = description
         self._attr_unique_id = (
