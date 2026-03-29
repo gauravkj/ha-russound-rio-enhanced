@@ -21,8 +21,13 @@ async def async_setup_entry(
 
     for controller in client.controllers.values():
         for zone_id in controller.zones:
-            entities.append(RussoundLowVolumeBoostSwitch(controller, zone_id))
-            entities.append(RussoundDoNotDisturbSwitch(controller, zone_id))
+            zone = controller.zones[zone_id]
+
+            if hasattr(zone, "low_volume_boost") and hasattr(zone, "set_low_volume_boost"):
+                entities.append(RussoundLowVolumeBoostSwitch(controller, zone_id))
+
+            if hasattr(zone, "do_not_disturb") and hasattr(zone, "set_do_not_disturb"):
+                entities.append(RussoundDoNotDisturbSwitch(controller, zone_id))
 
     async_add_entities(entities)
 
@@ -36,19 +41,12 @@ class RussoundZoneSwitchEntity(RussoundBaseEntity, SwitchEntity):
     def __init__(self, controller, zone_id: int) -> None:
         """Initialize the switch."""
         super().__init__(controller, zone_id)
-        self._attr_unique_id = (
-            f"{self._device_identifier}-{zone_id}-{self._switch_key}"
-        )
+        self._attr_unique_id = f"{self._device_identifier}-{zone_id}-{self._switch_key}"
 
     @property
     def available(self) -> bool:
         """Return whether entity is available."""
         return self._client.is_connected()
-
-    @property
-    def is_on(self) -> bool:
-        """Return switch state."""
-        raise NotImplementedError
 
 
 class RussoundLowVolumeBoostSwitch(RussoundZoneSwitchEntity):
@@ -61,17 +59,19 @@ class RussoundLowVolumeBoostSwitch(RussoundZoneSwitchEntity):
     @property
     def is_on(self) -> bool:
         """Return true if low volume boost is enabled."""
-        return bool(self._zone.low_volume_boost)
+        return bool(getattr(self._zone, "low_volume_boost", False))
 
     @command
     async def async_turn_on(self, **kwargs) -> None:
         """Turn on low volume boost."""
-        await self._zone.set_low_volume_boost(True)
+        if hasattr(self._zone, "set_low_volume_boost"):
+            await self._zone.set_low_volume_boost(True)
 
     @command
     async def async_turn_off(self, **kwargs) -> None:
         """Turn off low volume boost."""
-        await self._zone.set_low_volume_boost(False)
+        if hasattr(self._zone, "set_low_volume_boost"):
+            await self._zone.set_low_volume_boost(False)
 
 
 class RussoundDoNotDisturbSwitch(RussoundZoneSwitchEntity):
@@ -84,14 +84,16 @@ class RussoundDoNotDisturbSwitch(RussoundZoneSwitchEntity):
     @property
     def is_on(self) -> bool:
         """Return true if do not disturb is enabled."""
-        return bool(self._zone.do_not_disturb)
+        return bool(getattr(self._zone, "do_not_disturb", False))
 
     @command
     async def async_turn_on(self, **kwargs) -> None:
         """Turn on do not disturb."""
-        await self._zone.set_do_not_disturb(True)
+        if hasattr(self._zone, "set_do_not_disturb"):
+            await self._zone.set_do_not_disturb(True)
 
     @command
     async def async_turn_off(self, **kwargs) -> None:
         """Turn off do not disturb."""
-        await self._zone.set_do_not_disturb(False)
+        if hasattr(self._zone, "set_do_not_disturb"):
+            await self._zone.set_do_not_disturb(False)
