@@ -54,17 +54,6 @@ def _apply_smz16_patch() -> None:
     if rs_rio is not None:
         rs_rio.get_max_zones = _patched_get_max_zones  # type: ignore[assignment]
 
-    _LOGGER.warning(
-        "Patch check rs_util.get_max_zones('SMZ16-PRE')=%s",
-        rs_util.get_max_zones("SMZ16-PRE"),
-    )
-
-    if rs_rio is not None:
-        _LOGGER.warning(
-            "Patch check rs_rio.get_max_zones('SMZ16-PRE')=%s",
-            rs_rio.get_max_zones("SMZ16-PRE"),
-        )
-
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Russound RIO Enhanced integration."""
@@ -93,12 +82,6 @@ async def async_setup_entry(
         ) from err
 
     entry.runtime_data = client
-
-    if 1 in client.controllers:
-        _LOGGER.warning(
-            "Russound controller 1 zone count: %s",
-            len(client.controllers[1].zones),
-        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
