@@ -2,60 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
-
-from aiorussound import RussoundClient
-from aiorussound.models import RussoundZone
-
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import RussoundConfigEntry
-from .const import DOMAIN
-from .entity import RussoundZoneEntity
-
-
-@dataclass(frozen=True)
-class RussoundZoneSwitchDescription:
-    """Describe a Russound zone switch entity."""
-
-    key: str
-    name: str
-    icon: str
-    is_on_fn: Callable[[RussoundZone], bool]
-    turn_on_fn: Callable[[RussoundClient, int, int], object]
-    turn_off_fn: Callable[[RussoundClient, int, int], object]
-
-
-SWITCH_TYPES: tuple[RussoundZoneSwitchDescription, ...] = (
-    RussoundZoneSwitchDescription(
-        key="low_volume_boost",
-        name="Low Volume Boost",
-        icon="mdi:volume-plus",
-        is_on_fn=lambda zone: bool(zone.low_volume_boost),
-        turn_on_fn=lambda client, controller_id, zone_id: client.set_low_volume_boost(
-            controller_id, zone_id, True
-        ),
-        turn_off_fn=lambda client, controller_id, zone_id: client.set_low_volume_boost(
-            controller_id, zone_id, False
-        ),
-    ),
-    RussoundZoneSwitchDescription(
-        key="do_not_disturb",
-        name="Do Not Disturb",
-        icon="mdi:minus-circle-off",
-        is_on_fn=lambda zone: bool(zone.do_not_disturb),
-        turn_on_fn=lambda client, controller_id, zone_id: client.set_do_not_disturb(
-            controller_id, zone_id, True
-        ),
-        turn_off_fn=lambda client, controller_id, zone_id: client.set_do_not_disturb(
-            controller_id, zone_id, False
-        ),
-    ),
-)
+from .entity import RussoundBaseEntity, command
 
 
 async def async_setup_entry(
@@ -64,68 +16,82 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Russound switch entities from a config entry."""
-    russound_entry = entry
-    client: RussoundClient = russound_entry.runtime_data
+    client = entry.runtime_data
+    entities: list[SwitchEntity] = []
 
-    entities: list[RussoundZoneSwitch] = []
-
-    for controller_id, controller in client.controllers.items():
-        for zone_id, zone in controller.zones.items():
-            for description in SWITCH_TYPES:
-                entities.append(
-                    RussoundZoneSwitch(
-                        russound_entry,
-                        controller_id,
-                        zone_id,
-                        description,
-                    )
-                )
+    for controller in client.controllers.values():
+        for zone_id in controller.zones:
+            entities.append(RussoundLowVolumeBoostSwitch(controller, zone_id))
+            entities.append(RussoundDoNotDisturbSwitch(controller, zone_id))
 
     async_add_entities(entities)
 
 
-class RussoundZoneSwitch(RussoundZoneEntity, SwitchEntity):
-    """Representation of a Russound zone switch."""
+class RussoundZoneSwitchEntity(RussoundBaseEntity, SwitchEntity):
+    """Base Russound zone switch."""
 
-    entity_description: RussoundZoneSwitchDescription
+    _switch_key: str
+    _attr_icon: str
 
-    def __init__(
-        self,
-        entry: RussoundConfigEntry,
-        controller_id: int,
-        zone_id: int,
-        description: RussoundZoneSwitchDescription,
-    ) -> None:
+    def __init__(self, controller, zone_id: int) -> None:
         """Initialize the switch."""
-        super().__init__(entry, controller_id, zone_id)
-        self.entity_description = description
-        self._attr_has_entity_name = True
-        self._attr_name = description.name
-        self._attr_icon = description.icon
+        super().__init__(controller, zone_id)
         self._attr_unique_id = (
-            f"{DOMAIN}_{controller_id}_{zone_id}_{description.key}"
+            f"{self._device_identifier}-{zone_id}-{self._switch_key}"
         )
 
     @property
+    def available(self) -> bool:
+        """Return whether entity is available."""
+        return self._client.is_connected()
+
+    @property
     def is_on(self) -> bool:
-        """Return true if the switch is on."""
-        zone = self.zone
-        if zone is None:
-            return False
-        return self.entity_description.is_on_fn(zone)
+        """Return switch state."""
+        raise NotImplementedError
 
+
+class RussoundLowVolumeBoostSwitch(RussoundZoneSwitchEntity):
+    """Russound Low Volume Boost switch."""
+
+    _attr_name = "Low Volume Boost"
+    _attr_icon = "mdi:volume-plus"
+    _switch_key = "low_volume_boost"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if low volume boost is enabled."""
+        return bool(self._zone.low_volume_boost)
+
+    @command
     async def async_turn_on(self, **kwargs) -> None:
-        """Turn the switch on."""
-        await self.entity_description.turn_on_fn(
-            self.client,
-            self.controller_id,
-            self.zone_id,
-        )
+        """Turn on low volume boost."""
+        await self._zone.set_low_volume_boost(True)
 
+    @command
     async def async_turn_off(self, **kwargs) -> None:
-        """Turn the switch off."""
-        await self.entity_description.turn_off_fn(
-            self.client,
-            self.controller_id,
-            self.zone_id,
-        )
+        """Turn off low volume boost."""
+        await self._zone.set_low_volume_boost(False)
+
+
+class RussoundDoNotDisturbSwitch(RussoundZoneSwitchEntity):
+    """Russound Do Not Disturb switch."""
+
+    _attr_name = "Do Not Disturb"
+    _attr_icon = "mdi:minus-circle-off"
+    _switch_key = "do_not_disturb"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if do not disturb is enabled."""
+        return bool(self._zone.do_not_disturb)
+
+    @command
+    async def async_turn_on(self, **kwargs) -> None:
+        """Turn on do not disturb."""
+        await self._zone.set_do_not_disturb(True)
+
+    @command
+    async def async_turn_off(self, **kwargs) -> None:
+        """Turn off do not disturb."""
+        await self._zone.set_do_not_disturb(False)
