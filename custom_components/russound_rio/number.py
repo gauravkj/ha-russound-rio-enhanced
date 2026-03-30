@@ -9,6 +9,7 @@ from homeassistant.components.number import NumberEntity, NumberEntityDescriptio
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import RussoundConfigEntry
 from .entity import RussoundBaseEntity, command
@@ -18,7 +19,7 @@ PARALLEL_UPDATES = 0
 
 @dataclass(frozen=True, kw_only=True)
 class RussoundZoneNumberEntityDescription(NumberEntityDescription):
-    """Describes Russound number entities."""
+    """Describes Russound zone number entities."""
 
     value_fn: Callable[[ZoneControlSurface], float]
     set_value_fn: Callable[[ZoneControlSurface, float], Awaitable[None]]
@@ -75,16 +76,85 @@ async def async_setup_entry(
 ) -> None:
     """Set up Russound number entities based on a config entry."""
     client = entry.runtime_data
-    async_add_entities(
-        RussoundNumberEntity(controller, zone_id, description)
-        for controller in client.controllers.values()
-        for zone_id in controller.zones
-        for description in CONTROL_ENTITIES
-    )
+
+    entities: list[NumberEntity] = []
+
+    for controller in client.controllers.values():
+        entities.append(RussoundControllerStartupVolumeNumber(controller))
+
+        for zone_id in controller.zones:
+            for description in CONTROL_ENTITIES:
+                entities.append(RussoundZoneNumberEntity(controller, zone_id, description))
+
+    async_add_entities(entities)
 
 
-class RussoundNumberEntity(RussoundBaseEntity, NumberEntity):
-    """Defines a Russound number entity."""
+class RussoundControllerEntity(RussoundBaseEntity):
+    """Base class for controller level Russound entities."""
+
+    def __init__(self, controller: Controller) -> None:
+        """Initialize controller level entity."""
+        super().__init__(controller, zone_id=None)
+        self._attr_has_entity_name = True
+
+
+class RussoundControllerStartupVolumeNumber(
+    RussoundControllerEntity, NumberEntity, RestoreEntity
+):
+    """Controller level startup volume applied to all zones."""
+
+    _attr_name = "Startup Volume for All Zones"
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_min_value = 0
+    _attr_native_max_value = 100
+    _attr_native_step = 2
+
+    def __init__(self, controller: Controller) -> None:
+        """Initialize controller startup volume number."""
+        super().__init__(controller)
+        self._attr_unique_id = (
+            f"{self._primary_mac_address}-{self._controller.device_str}-turn_on_volume_all"
+        )
+        self._master_value: float | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last controller level value if available."""
+        await super().async_added_to_hass()
+
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state not in ("unknown", "unavailable"):
+            try:
+                self._master_value = float(last_state.state)
+                return
+            except ValueError:
+                pass
+
+        first_zone = next(iter(self._controller.zones.values()))
+        self._master_value = float(first_zone.turn_on_volume * 2)
+
+    @property
+    def native_value(self) -> float:
+        """Return the stored controller startup volume."""
+        if self._master_value is None:
+            first_zone = next(iter(self._controller.zones.values()))
+            return float(first_zone.turn_on_volume * 2)
+        return self._master_value
+
+    @command
+    async def async_set_native_value(self, value: float) -> None:
+        """Set startup volume on all zones and store controller master value."""
+        self._master_value = float(value)
+        zone_value = int(value / 2)
+
+        for zone in self._controller.zones.values():
+            await zone.set_turn_on_volume(zone_value)
+
+        self.async_write_ha_state()
+
+
+class RussoundZoneNumberEntity(RussoundBaseEntity, NumberEntity):
+    """Defines a Russound zone number entity."""
 
     entity_description: RussoundZoneNumberEntityDescription
 
@@ -94,7 +164,7 @@ class RussoundNumberEntity(RussoundBaseEntity, NumberEntity):
         zone_id: int,
         description: RussoundZoneNumberEntityDescription,
     ) -> None:
-        """Initialize a Russound number entity."""
+        """Initialize a Russound zone number entity."""
         super().__init__(controller, zone_id)
         self.entity_description = description
         self._attr_has_entity_name = True
