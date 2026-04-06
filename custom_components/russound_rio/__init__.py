@@ -6,6 +6,8 @@ import logging
 
 import aiorussound.util as rs_util
 from aiorussound import RussoundClient, RussoundTcpConnectionHandler
+from .const import DOMAIN, MBX_SOURCE_MODE_DEVICES
+from .riose import MbxRioSeClient
 
 try:
     import aiorussound.rio as rs_rio
