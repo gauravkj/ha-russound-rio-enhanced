@@ -6,4 +6,21 @@ __pycache__/
 secrets.yaml
 .storage/
 *.db
+*.db-shm
+*.db-wal
+*.log__pycache__/
+*.pyc
+*.pyo
+<<<<<<< HEAD
+.DS_Store
+.env
+secrets.yaml
+.storage/
+*.db
 *.log
+=======
+*.log
+.DS_Store
+.idea/
+.vscode/
+>>>>>>> ee45554ca2c4f4a05fad546dda1d12f95d95833e
