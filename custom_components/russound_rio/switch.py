@@ -38,7 +38,7 @@ CONTROL_ENTITIES: tuple[RussoundZoneSwitchEntityDescription, ...] = (
         name="Do Not Disturb",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda zone: zone.do_not_disturb,
-        set_value_fn=lambda zone, value: zone.set_do_not_disturb(value),
+        set_value_fn=lambda zone, value: zone.send_event("DoNotDisturb", "on" if value else "off"),
     ),
 )
 
