@@ -165,7 +165,7 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
         return self._source.play_time
 
     @property
-    def media_position_updated_at(self) -> dt.datetime:
+    def media_position_updated_at(self) -> dt.datetime | None:
         """Last time the media position was updated."""
         return self._source.position_last_updated
 
@@ -206,7 +206,8 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
             if src.name.lower() != source.lower():
                 continue
             await self._zone.select_source(source_id)
-            break
+            return
+        _LOGGER.warning("No source matching '%s' found for zone %s", source, self.entity_id)
 
     @command
     async def async_volume_up(self) -> None:
@@ -259,7 +260,7 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
                 translation_key="preset_non_integer",
                 translation_placeholders={"preset_id": media_id},
             ) from ve
-        if source_id:
+        if source_id is not None:
             await self._zone.select_source(source_id)
             await asyncio.sleep(SELECT_SOURCE_DELAY)
         if not self._source.presets or preset_id not in self._source.presets:

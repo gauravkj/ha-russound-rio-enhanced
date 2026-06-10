@@ -73,10 +73,20 @@ async def async_setup_entry(
 
     try:
         await client.connect()
-        await client.load_zone_source_metadata()
     except Exception as err:
         raise ConfigEntryNotReady(
             f"Unable to connect to Russound controller at {host}:{port}"
+        ) from err
+
+    try:
+        await client.load_zone_source_metadata()
+    except Exception as err:
+        try:
+            await client.disconnect()
+        except Exception:
+            _LOGGER.debug("Error while disconnecting after metadata load failure", exc_info=True)
+        raise ConfigEntryNotReady(
+            f"Unable to load zone/source metadata from Russound controller at {host}:{port}"
         ) from err
 
     entry.runtime_data = client

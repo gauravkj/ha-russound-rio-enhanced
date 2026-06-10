@@ -58,6 +58,14 @@
     "switch": {
       "loudness": {
         "name": "Loudness"
+      },
+      "do_not_disturb": {
+        "name": "Do Not Disturb"
+      }
+    },
+    "number": {
+      "turn_on_volume_all": {
+        "name": "Startup Volume for All Zones"
       }
     }
   },

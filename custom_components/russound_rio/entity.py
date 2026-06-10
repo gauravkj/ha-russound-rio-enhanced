@@ -2,6 +2,7 @@
 
 from collections.abc import Awaitable, Callable, Coroutine
 from functools import wraps
+import logging
 from typing import Any, Concatenate
 
 from aiorussound import Controller, RussoundClient
@@ -13,6 +14,8 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN, RUSSOUND_RIO_EXCEPTIONS
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def command[_EntityT: RussoundBaseEntity, **_P](
@@ -26,6 +29,9 @@ def command[_EntityT: RussoundBaseEntity, **_P](
         try:
             await func(self, *args, **kwargs)
         except RUSSOUND_RIO_EXCEPTIONS as exc:
+            _LOGGER.debug(
+                "Command error in %s on %s", func.__name__, self.entity_id, exc_info=True
+            )
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="command_error",
@@ -86,7 +92,13 @@ class RussoundBaseEntity(Entity):
     ) -> None:
         """Call when the device is notified of changes."""
         if _callback_type == CallbackType.CONNECTION:
-            self._attr_available = _client.is_connected()
+            connected = _client.is_connected()
+            _LOGGER.debug(
+                "Russound connection state changed: %s (entity=%s)",
+                "connected" if connected else "disconnected",
+                self.entity_id,
+            )
+            self._attr_available = connected
         self._controller = _client.controllers[self._controller.controller_id]
         self.async_write_ha_state()
 
