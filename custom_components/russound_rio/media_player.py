@@ -239,7 +239,7 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
     @command
     async def async_media_play(self) -> None:
         """Send play command to the zone."""
-        await self._zone.play()
+        await self._zone.send_event("KeyRelease", "Play")
 
     @command
     async def async_media_pause(self) -> None:
@@ -265,19 +265,19 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
     async def async_media_play_pause(self) -> None:
         """Toggle play/pause based on current play status."""
         if self._source.play_status == PlayStatus.PLAYING:
-            await self._zone.pause()
+            await self._zone.send_event("KeyRelease", "Pause")
         else:
-            await self._zone.play()
+            await self._zone.send_event("KeyRelease", "Play")
 
     @command
     async def async_media_next_track(self) -> None:
         """Send next track command to the zone."""
-        await self._zone.next()
+        await self._zone.send_event("KeyRelease", "Next")
 
     @command
     async def async_media_previous_track(self) -> None:
         """Send previous track command to the zone."""
-        await self._zone.previous()
+        await self._zone.send_event("KeyRelease", "Previous")
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
