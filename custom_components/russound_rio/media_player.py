@@ -25,7 +25,12 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import RussoundConfigEntry, media_browser
-from .const import DOMAIN, RUSSOUND_MEDIA_TYPE_PRESET, SELECT_SOURCE_DELAY
+from .const import (
+    DOMAIN,
+    RUSSOUND_MEDIA_TYPE_PRESET,
+    RUSSOUND_MEDIA_TYPE_SYSTEM_FAVORITE,
+    SELECT_SOURCE_DELAY,
+)
 from .entity import RussoundBaseEntity, command
 
 _LOGGER = logging.getLogger(__name__)
@@ -282,6 +287,24 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
     ) -> None:
         """Play media on the Russound zone."""
+
+        if media_type == RUSSOUND_MEDIA_TYPE_SYSTEM_FAVORITE:
+            try:
+                fav_num = int(media_id)
+            except ValueError as ve:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="preset_non_integer",
+                    translation_placeholders={"preset_id": media_id},
+                ) from ve
+            if fav_num < 1 or fav_num > 32:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="missing_preset",
+                    translation_placeholders={"preset_id": media_id},
+                )
+            await self._zone.send_event("RestoreSystemFavorite", fav_num)
+            return
 
         if media_type != RUSSOUND_MEDIA_TYPE_PRESET:
             raise HomeAssistantError(
