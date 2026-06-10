@@ -244,21 +244,6 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
     @command
     async def async_media_pause(self) -> None:
         """Send pause command to the zone."""
-        try:
-            src = self._source
-            _LOGGER.debug(
-                "media_pause diagnostic: entity=%s source_name=%s source_type=%s"
-                " source_mode=%s play_status=%s volume=%s zone_on=%s",
-                self.entity_id,
-                getattr(src, "name", None),
-                getattr(src, "type", None),
-                getattr(src, "mode", None),
-                getattr(src, "play_status", None),
-                getattr(self._zone, "volume", None),
-                getattr(self._zone, "status", None),
-            )
-        except Exception:
-            _LOGGER.debug("media_pause diagnostic: source lookup failed", exc_info=True)
         await self._zone.send_event("KeyRelease", "Pause")
 
     @command
