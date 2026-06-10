@@ -259,7 +259,7 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
             )
         except Exception:
             _LOGGER.debug("media_pause diagnostic: source lookup failed", exc_info=True)
-        await self._zone.pause()
+        await self._zone.send_event("KeyRelease", "Pause")
 
     @command
     async def async_media_play_pause(self) -> None:
