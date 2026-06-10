@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiorussound import Controller
 from aiorussound.const import FeatureFlag
-from aiorussound.models import PlayStatus, Source
+from aiorussound.models import PlayStatus, Source, SourceMode
 from aiorussound.util import is_feature_supported
 
 from homeassistant.components.media_player import (
@@ -78,6 +78,10 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
         | MediaPlayerEntityFeature.SELECT_SOURCE
         | MediaPlayerEntityFeature.SEEK
         | MediaPlayerEntityFeature.PLAY_MEDIA
+        | MediaPlayerEntityFeature.PLAY
+        | MediaPlayerEntityFeature.PAUSE
+        | MediaPlayerEntityFeature.NEXT_TRACK
+        | MediaPlayerEntityFeature.PREVIOUS_TRACK
     )
     _attr_name = None
 
@@ -231,6 +235,42 @@ class RussoundZoneDevice(RussoundBaseEntity, MediaPlayerEntity):
 
         if mute != self.is_volume_muted:
             await self._zone.toggle_mute()
+
+    @command
+    async def async_media_play(self) -> None:
+        """Send play command to the zone."""
+        await self._zone.play()
+
+    @command
+    async def async_media_pause(self) -> None:
+        """Send pause command to the zone."""
+        await self._zone.pause()
+
+    @command
+    async def async_media_play_pause(self) -> None:
+        """Toggle play/pause based on current play status."""
+        if self._source.play_status == PlayStatus.PLAYING:
+            await self._zone.pause()
+        else:
+            await self._zone.play()
+
+    @command
+    async def async_media_next_track(self) -> None:
+        """Send next track command to the zone."""
+        await self._zone.next()
+
+    @command
+    async def async_media_previous_track(self) -> None:
+        """Send previous track command to the zone."""
+        await self._zone.previous()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str] | None:
+        """Return streaming service name if active."""
+        mode = getattr(self._source, "mode", None)
+        if mode is None or mode == SourceMode.UNKNOWN:
+            return None
+        return {"streaming_service": str(mode)}
 
     @command
     async def async_media_seek(self, position: float) -> None:
